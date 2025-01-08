@@ -1836,6 +1836,14 @@ button {
   }
 }
 
+.label_PV6iy8u {
+  background: rgb(255 255 255 / 0.1);
+  border-radius: 40px;
+  padding-right: 15px;
+
+  cursor: pointer;
+}
+
 /* ----- COMPONENTS -- IMAGESELECT.CSS ----- */
 
 .div_ctWSRLRf99 {

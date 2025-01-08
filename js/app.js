@@ -205,7 +205,8 @@ var componentVideo = (useParams) => {
         diff: 0,
         time: 0,
       },
-
+      mediaRecorder: null,
+      mediaSource: null,
       localStream: null,
       localStreamBase: null,
       users: {},
@@ -262,7 +263,14 @@ var componentVideo = (useParams) => {
                   
                     <div class="d-flex d_Ede27MY">
                       <div class="d-flex-center-y position-relative-true">
-                        <span id="ele-duration-text" style="padding-left:20px;">99:99:99</span>
+                        <span id="ele-duration-text" style="padding: 0 20px;">99:99:99</span>
+                        <label class="label_PV6iy8u d-flex-center">
+                          <input id="recorder-start-stop" type="checkbox" style="display:none">
+                          <small id="recorder-start-stop-icon" class="app-square-var d-flex-center">
+                            ${useApp.svgIcon("fi fi-rr-dot-circle")}
+                          </small>
+                          <span id="recorder-start-stop-time">00:00:00</span>
+                        </label>
                       </div>
                       <div class="d-flex position-relative-true">
                         <label class="app-square-var d-flex-center">
@@ -561,6 +569,8 @@ var componentVideo = (useParams) => {
         $elements.video.addEventListener("loadedmetadata", () => {
           const stream = $elements.video.captureStream();
           useThis.functions.streamStart(stream);
+
+          // const mediaRecorder = new MediaRecorder(stream);
         });
 
         $elements.video.src = URL.createObjectURL(file);
@@ -657,6 +667,72 @@ var componentVideo = (useParams) => {
     );
 
     $elements.video.muted = !e.target.checked;
+  });
+
+  $elements["recorder-start-stop"]?.addEventListener("change", (e) => {
+    if (e.target.checked) {
+      if (useApp.values.streamDinamic) {
+        const stream = useApp.values.streamDinamic;
+        const options = {
+          mimeType: "video/webm; codecs=vp9,opus",
+          // ideoBitsPerSecond: 5000000, // 5 Mbps para video
+          // audioBitsPerSecond: 128000, // 128 kbps para audio
+        };
+
+        const mediaRecorder = new MediaRecorder(stream, options);
+        useThis.values.mediaRecorder = mediaRecorder;
+
+        const chunks = []; // Para almacenar los datos grabados
+
+        let seconds = 0;
+
+        $elements["recorder-start-stop-time"].textContent = "00:00:00";
+
+        mediaRecorder.ondataavailable = (event) => {
+          const convert = useThis.functions.convertSecondsToTime(++seconds);
+
+          $elements["recorder-start-stop-time"].textContent = [
+            convert.hours,
+            convert.minutes,
+            convert.seconds,
+          ]
+            .map((num) => {
+              return String(num).padStart(2, "0");
+            })
+            .join(":");
+
+          if (event.data.size > 0) {
+            chunks.push(event.data);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(chunks, { type: "video/webm" });
+          const url = URL.createObjectURL(blob);
+          // Crear un enlace de descarga
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `recording-${Date.now()}.webm`;
+          a.click();
+          // Liberar recursos
+          URL.revokeObjectURL(url);
+        };
+
+        // Iniciar la grabación
+        mediaRecorder.start(1000);
+      } else {
+        e.target.checked = false;
+        return;
+      }
+    } else {
+      const mediaRecorder = useThis.values.mediaRecorder;
+      mediaRecorder?.stop();
+      console.log("Grabación detenida.");
+    }
+
+    $elements["recorder-start-stop-icon"].innerHTML = useApp.svgIcon(
+      e.target.checked ? "fi fi-rr-stop" : "fi fi-rr-dot-circle"
+    );
   });
 
   setTimeout(() => {
@@ -1444,6 +1520,8 @@ var svgIcon = () => {
   const template = document.createElement("div");
 
   template.innerHTML = [
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" data-svg-name="fi fi-rr-stop"><path d="M19,0H5A5.006,5.006,0,0,0,0,5V19a5.006,5.006,0,0,0,5,5H19a5.006,5.006,0,0,0,5-5V5A5.006,5.006,0,0,0,19,0Zm3,19a3,3,0,0,1-3,3H5a3,3,0,0,1-3-3V5A3,3,0,0,1,5,2H19a3,3,0,0,1,3,3Z"></path></svg>',
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" data-svg-name="fi fi-rr-dot-circle"><path d="m12,0C5.383,0,0,5.383,0,12s5.383,12,12,12,12-5.383,12-12S18.617,0,12,0Zm0,22c-5.514,0-10-4.486-10-10S6.486,2,12,2s10,4.486,10,10-4.486,10-10,10Zm4-10c0,2.209-1.791,4-4,4s-4-1.791-4-4,1.791-4,4-4,4,1.791,4,4Z"></path></svg>',
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" data-svg-name="fi fi-rr-volume-mute"><path d="m13.644.418c-.228-.19-.529-.268-.821-.215-3.001.555-5.754,2.302-7.554,4.794h-.271C2.241,4.998-.002,7.241-.002,9.998v4.005C-.002,16.76,2.241,19.003,4.998,19.003h.271c1.802,2.495,4.555,4.243,7.554,4.794.06.011.121.017.181.017.232,0,.459-.081.64-.231.228-.19.36-.472.36-.769V1.187c0-.297-.131-.579-.36-.769Zm-1.64,21.117c-2.03-.646-3.851-1.954-5.113-3.703l-.299-.415c-.188-.26-.489-.415-.811-.415h-.782c-1.654,0-3-1.346-3-3v-4.005c0-1.654,1.346-3,3-3h.782c.321,0,.623-.154.811-.415l.299-.415c1.261-1.747,3.083-3.054,5.114-3.702v19.068Zm11.729-7.242c.391.391.391,1.023,0,1.414-.195.195-.451.293-.707.293s-.512-.098-.707-.293l-2.293-2.293-2.293,2.293c-.195.195-.451.293-.707.293s-.512-.098-.707-.293c-.391-.391-.391-1.023,0-1.414l2.293-2.293-2.293-2.293c-.391-.391-.391-1.023,0-1.414s1.023-.391,1.414,0l2.293,2.293,2.293-2.293c.391-.391,1.023-.391,1.414,0s.391,1.023,0,1.414l-2.293,2.293,2.293,2.293Z"></path></svg>',
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" data-svg-name="fi fi-sr-pause"><path d="M6.5,0A3.5,3.5,0,0,0,3,3.5v17a3.5,3.5,0,0,0,7,0V3.5A3.5,3.5,0,0,0,6.5,0Z"></path><path d="M17.5,0A3.5,3.5,0,0,0,14,3.5v17a3.5,3.5,0,0,0,7,0V3.5A3.5,3.5,0,0,0,17.5,0Z"></path></svg>',
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" data-svg-name="fi fi-rr-messages"><path d="m19,4h-1.101c-.465-2.279-2.485-4-4.899-4H5C2.243,0,0,2.243,0,5v12.854c0,.794.435,1.52,1.134,1.894.318.171.667.255,1.015.255.416,0,.831-.121,1.19-.36l2.95-1.967c.691,1.935,2.541,3.324,4.711,3.324h5.697l3.964,2.643c.36.24.774.361,1.19.361.348,0,.696-.085,1.015-.256.7-.374,1.134-1.1,1.134-1.894v-12.854c0-2.757-2.243-5-5-5ZM2.23,17.979c-.019.012-.075.048-.152.007-.079-.042-.079-.109-.079-.131V5c0-1.654,1.346-3,3-3h8c1.654,0,3,1.346,3,3v7c0,1.654-1.346,3-3,3h-6c-.327,0-.541.159-.565.175l-4.205,2.804Zm19.77,3.876c0,.021,0,.089-.079.131-.079.041-.133.005-.151-.007l-4.215-2.811c-.164-.109-.357-.168-.555-.168h-6c-1.304,0-2.415-.836-2.828-2h4.828c2.757,0,5-2.243,5-5v-6h1c1.654,0,3,1.346,3,3v12.854Z"></path></svg>',
@@ -1522,20 +1600,9 @@ var dataApp = () => {
     uid: "id-app-cf63f8b2c10e10008e773a856dd6a450db17857965db51fbc3006d8d810d939b",
     routes: new RouteHashCallback(),
     auth: "auth_Mj8Q5q3",
-    url: {
-       
-    },
+    url: {},
     user: {},
-    // icon: new IconSVG(),
     svgIcon: svgIcon(),
-    // val: {
-    //   videoId: null,
-    // },
-    // data: {
-    //   token: {
-    //     youtube: null,
-    //   },
-    // },
     elements: {
       metaThemeColor: document.getElementById("meta-theme-color"),
       styleApp: document.getElementById("style-app"),
@@ -1630,7 +1697,7 @@ var dataApp = () => {
       };
     },
     socket: {
-      io: io("https://l8qn2l7t-4999.brs.devtunnels.ms/"),
+      io: null, // io("https://l8qn2l7t-4999.brs.devtunnels.ms/"),
     },
   };
 
