@@ -64,7 +64,7 @@ var theme = () => {
   addEventListener("_theme", () => {
     if (!localStorage.getItem("theme")) localStorage.setItem("theme", "system");
 
-    const theme = localStorage.theme;
+    const theme = "dark";localStorage.theme;
 
     if (theme == "dark" || theme == "light") {
       const object = useThis.values.themes[theme];
@@ -1697,7 +1697,7 @@ var dataApp = () => {
       };
     },
     socket: {
-      io: null, // io("https://l8qn2l7t-4999.brs.devtunnels.ms/"),
+      io: io("https://l8qn2l7t-4999.brs.devtunnels.ms/"),
     },
   };
 
